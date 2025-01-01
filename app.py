@@ -37,15 +37,13 @@ def airport(icao):
 
 
 @app.route("/api/flight-plan/<icao>")
-def flight_plan(icao):
-    # EGLC, EHMZ, EBSP
-    # route = ["EHRD", "EHTX", "EHGG"]
+def flight_plan(icao: str):
     route = icao.split(",")
 
+    if len(route) < 2:
+        return Response("Need at least two waypoints", status=400)
+
     route_aerodomes = [service.fetch_airport(icao) for icao in route]
-    # print(route_aerodomes)
-    # for aerodome in route_aerodomes:
-    #     print(type(aerodome), isinstance(aerodome, Airport))
 
     metar = service.fetch_metar(route)
 
@@ -64,9 +62,6 @@ def flight_plan(icao):
     )
 
     plan = FlightPlan(route_aerodomes, aircraft=aircraft, metar=metar)
-    # plan.add_waypoint(ehtx)
-    # plan.print_report()
-
     return Response(str(plan), mimetype="text/plain")
 
 
