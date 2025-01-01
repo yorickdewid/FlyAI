@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VFR Flight Planning Assistant</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            background: #f5f5f5;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .chat-container {
+            flex: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            height: 600px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            height: 0;
+            min-height: 0;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            max-width: 70%;
+            display: flex;
+        }
+
+        .message.sent {
+            margin-left: auto;
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 16px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .sent .message-content {
+            background: #0084ff;
+            color: white;
+        }
+
+        .received .message-content {
+            background: white;
+            border: 1px solid #e1e1e1;
+        }
+
+        .quick-reactions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 0 12px;
+        }
+
+        .reaction-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .reaction-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-top: 1px solid #e1e1e1;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e1e1e1;
+            border-radius: 4px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #0073e6;
+        }
+
+        .weather-sidebar {
+            width: 300px;
+            padding: 20px;
+            background: white;
+            border-left: 1px solid #e1e1e1;
+            overflow-y: auto;
+        }
+
+        .weather-box {
+            background: white;
+            border: 1px solid #e1e1e1;
+            border-left: 4px solid #ccc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .weather-box.vfr {
+            border-left-color: #4CAF50;
+        }
+
+        .weather-box.mvfr {
+            border-left-color: #2196F3;
+        }
+
+        .weather-box.ifr {
+            border-left-color: #f44336;
+        }
+
+        .weather-box.lifr {
+            border-left-color: #9C27B0;
+        }
+
+        .weather-box-content {
+            overflow: hidden;
+            max-height: 120px;
+            transition: max-height 0.3s ease;
+        }
+
+        .weather-box.expanded .weather-box-content {
+            max-height: 500px;
+        }
+
+        .raw-metar {
+            margin-top: 12px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+        }
+
+        .weather-box.expanded .raw-metar {
+            display: block;
+        }
+
+        .expand-button {
+            width: 100%;
+            text-align: center;
+            padding: 4px;
+            margin-top: 8px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .expand-button:hover {
+            background: #f5f5f5;
+        }
+
+        .weather-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .station-id {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .observation-time {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .weather-condition {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            gap: 8px;
+        }
+
+        .condition-label {
+            color: #666;
+            width: 80px;
+        }
+
+        .wind-arrow {
+            display: inline-block;
+            transform-origin: center;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .weather-sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #e1e1e1;
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const input = document.querySelector('#message');
+            const sendButton = document.querySelector('#btn-send');
+            const reactionButtons = document.querySelectorAll('.reaction-btn');
+            const chatMessages = document.querySelector('.chat-messages');
+
+            input.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendButton.click();
+                }
+            });
+
+            sendButton.addEventListener('click', function () {
+                const message = input.value;
+                if (message) {
+                    input.value = '';
+                    addMessage(message, 'sent');
+                    messageHandler(message);
+                }
+            });
+
+            reactionButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    addMessage(button.textContent, 'sent');
+                    messageHandler(button.textContent);
+                });
+            });
+
+            function parseMarkdown(markdownText) {
+                // Headings
+                markdownText = markdownText.replace(/^(#+)\s(.*)/gm, function (match, hash, text) {
+                    const level = hash.length;
+                    return `<h${level}>${text}</h${level}>`;
+                });
+
+                // Bold
+                markdownText = markdownText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                markdownText = markdownText.replace(/__(.*?)__/g, '<strong>$1</strong>');
+
+                // Italic
+                markdownText = markdownText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                markdownText = markdownText.replace(/_(.*?)_/g, '<em>$1</em>');
+
+                // Links
+                markdownText = markdownText.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+
+                // Newlines
+                markdownText = markdownText.replace(/\n/g, '<br>');
+
+                // Code blocks
+                markdownText = markdownText.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>')
+
+                return markdownText;
+            }
+
+            function messageHandler(message) {
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        addMessage(parseMarkdown(data.message), 'received');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        addMessage(`Error: ${error.message}`, 'received');
+                    });
+
+                // if (message.toLowerCase().includes('metar')) {
+                //     const icaoCode = message.match(/\b[A-Z]{4}\b/);
+                //     if (icaoCode) {
+                //         addMessage(`Fetching METAR for ${icaoCode[0]}...`, 'received');
+
+                //         fetch(`/api/metar/${icaoCode[0]}`)
+                //             .then(response => {
+                //                 if (!response.ok) {
+                //                     throw new Error('Network response was not ok');
+                //                 }
+                //                 return response.json();
+                //             })
+                //             .then(data => {
+                //                 addMessage(data[0].raw, 'received');
+                //             })
+                //             .catch(error => {
+                //                 console.error('Error:', error);
+                //                 addMessage(`Error fetching METAR: ${error.message}`, 'received');
+                //             });
+                //     }
+                // } else {
+                //     setTimeout(function () {
+                //         addMessage('I am a bot and I am here to help you.', 'received');
+                //     }, 1000);
+                // }
+            }
+
+            function addMessage(message, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', type);
+                const messageContent = document.createElement('div');
+                messageContent.classList.add('message-content');
+                messageContent.innerHTML = message;
+                messageDiv.appendChild(messageContent);
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            // console.log('Hello, world!');
+        });
+    </script>
+</head>
+
+<body>
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-messages">
+                <div class="message received">
+                    <div class="message-content">Hi there! I'll help you plan your VFR flight. Which route are you
+                        planning?</div>
+                </div>
+                <div class="message sent">
+                    <div class="message-content">I'm planning a flight from KJFK to KBOS, roughly following the
+                        coastline. I'd like to know about the weather conditions and any potential challenges along this
+                        route.</div>
+                </div>
+                <div class="message received">
+                    <div class="message-content">I'll help you analyze that route. The current conditions at JFK show
+                        winds 270 at 15 knots gusting to 25, and Boston is reporting good VFR conditions. Let's look at
+                        the details and checkpoints along your route.</div>
+                </div>
+                <div class="message sent">
+                    <div class="message-content">Perfect, thanks! What's the recommended cruising altitude for this
+                        route considering the winds?</div>
+                </div>
+            </div>
+            <div class="quick-reactions">
+                <button class="reaction-btn">Check METAR for EHRD</button>
+                <button class="reaction-btn">Route planning</button>
+                <button class="reaction-btn">Calculate fuel</button>
+                <button class="reaction-btn">Check NOTAMs</button>
+            </div>
+            <div class="input-area">
+                <input id="message" type="text" placeholder="Type your message...">
+                <button id="btn-send">Send</button>
+            </div>
+        </div>
+    </div>
+    <div class="weather-sidebar">
+        <div class="weather-box vfr">
+            <div class="weather-box-header">
+                <span class="station-id">KJFK</span>
+                <span class="observation-time">15:51Z</span>
+            </div>
+            <div class="weather-box-content">
+                <div class="weather-condition">
+                    <span class="condition-label">Wind</span>
+                    <span>→ 270° at 15G25kt</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Visibility</span>
+                    <span>10SM</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Ceiling</span>
+                    <span>BKN250</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Temp/Dew</span>
+                    <span>23°C/12°C</span>
+                </div>
+                <div class="raw-metar">
+                    KJFK 311551Z 27015G25KT 10SM FEW035 BKN250 23/12 A3001 RMK AO2 SLP162 T02280122
+                </div>
+            </div>
+            <button class="expand-button">Show more ▼</button>
+        </div>
+
+        <div class="weather-box mvfr">
+            <div class="weather-box-header">
+                <span class="station-id">KLGA</span>
+                <span class="observation-time">15:51Z</span>
+            </div>
+            <div class="weather-box-content">
+                <div class="weather-condition">
+                    <span class="condition-label">Wind</span>
+                    <span>↗ 320° at 12kt</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Visibility</span>
+                    <span>8SM</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Ceiling</span>
+                    <span>FEW045</span>
+                </div>
+                <div class="weather-condition">
+                    <span class="condition-label">Temp/Dew</span>
+                    <span>22°C/11°C</span>
+                </div>
+                <div class="raw-metar">
+                    KLGA 311551Z 32012KT 8SM FEW045 22/11 A3002 RMK AO2
+                </div>
+            </div>
+            <button class="expand-button">Show more ▼</button>
+        </div>
+    </div>
+</body>
+
+</html>
