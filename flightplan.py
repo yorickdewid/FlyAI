@@ -94,10 +94,10 @@ class Waypoint:
         return geodesic(self.coordinates, other.coordinates).nm
 
     def __str__(self):
-        return f"{self.name} ({self.coordinates})"
+        return f"{self.name}"
 
     def __repr__(self):
-        return f"{self.name} ({self.coordinates})"
+        return f"{self.name}"
 
 
 @dataclass
@@ -190,8 +190,19 @@ class FlightPlan:
         metar = next((m for m in self.metar if m.station == icao), None)
         return metar
 
+    def find_waypoint(self, name: str) -> Waypoint | None:
+        for waypoint in self.route:
+            if waypoint.name == name:
+                return waypoint
+            elif isinstance(waypoint, Airport):
+                if waypoint.icao == name:
+                    return waypoint
+
     def add_waypoint(self, waypoint: Waypoint | Airport):
         self.route.insert(-1, waypoint)
+
+    def add_waypoint_after(self, waypoint: Waypoint | Airport, after: str):
+        self.route.insert(self.route.index(self.find_waypoint(after)) + 1, waypoint)
 
     @property
     def departure(self) -> Airport | Waypoint:
@@ -241,17 +252,17 @@ class FlightPlan:
                     next_waypoint = self.route[i + 1].center
                 else:
                     next_waypoint = self.route[i + 1]
-            distance = current_waypoint.distance(next_waypoint)
-            output.write(f"     + Distance: {round(distance)} nm\n")
+                distance = current_waypoint.distance(next_waypoint)
+                output.write(f"     + Distance: {round(distance)} nm\n")
 
-            if self.aircraft:
-                time = distance / self.aircraft.cruise_speed
-                time_in_min = round(time * 60)
-                output.write(f"     + Time: {time_in_min} minutes\n")
-                fuel_required = time * self.aircraft.fuel_consumption
-                output.write(
-                    f"     + Fuel required: {math.ceil(fuel_required)} liters\n"
-                )
+                if self.aircraft:
+                    time = distance / self.aircraft.cruise_speed
+                    time_in_min = round(time * 60)
+                    output.write(f"     + Time: {time_in_min} minutes\n")
+                    fuel_required = time * self.aircraft.fuel_consumption
+                    output.write(
+                        f"     + Fuel required: {math.ceil(fuel_required)} liters\n"
+                    )
 
         for i, waypoint in enumerate(self.route):
             # if i == 0:
@@ -270,39 +281,40 @@ class FlightPlan:
                 for frequency in waypoint.frequencies:
                     output.write(f"    {frequency.name} ({frequency.value})\n")
 
-            metar = self.find_metar(waypoint.icao)
-            if metar:
-                runway_in_use, runway_wind = waypoint.runway_in_use(metar)
+                # TODO: Add an option to bind multiple METARs to an waypoint
+                metar = self.find_metar(waypoint.icao)
+                if metar:
+                    runway_in_use, runway_wind = waypoint.runway_in_use(metar)
 
-                output.write(f"  Runway in use: {runway_in_use.designator}\n")
-                output.write(f"    Headwind: {runway_wind.headwind2} kt\n")
-                output.write(
-                    f"    Crosswind: {runway_wind.crosswind2} kt {runway_wind.direction}\n"
-                )
+                    output.write(f"  Runway in use: {runway_in_use.designator}\n")
+                    output.write(f"    Headwind: {runway_wind.headwind2} kt\n")
+                    output.write(
+                        f"    Crosswind: {runway_wind.crosswind2} kt {runway_wind.direction}\n"
+                    )
 
-                output.write(f"  METAR:\n")
-                output.write(f"    Station: {metar.station}\n")
-                output.write(f"    Time: {metar.time}\n")
-                output.write(f"    RAW: {metar.raw}\n")
-                output.write(
-                    f"    Wind: {metar.wind_direction} degrees at {metar.wind_speed} kt\n"
-                )
-                if metar.wind_gust:
-                    output.write(f"    Wind gust: {metar.wind_gust} kt\n")
-                # TODO: Find the actual visibility
-                if metar.visibility == "6+":
-                    output.write(f"    Visibility: 10+ km\n")
-                else:
-                    output.write(f"    Visibility: {metar.visibility}\n")
-                output.write(f"    Temperature: {metar.temperature}°C\n")
-                output.write(f"    Dewpoint: {metar.dewpoint}°C\n")
-                output.write(f"    Pressure (QNH): {metar.pressure} hPa\n")
-                output.write(f"    Clouds:\n")
-                for cloud in metar.clouds:
-                    output.write(f"      {cloud}\n")
+                    output.write(f"  METAR:\n")
+                    output.write(f"    Station: {metar.station}\n")
+                    output.write(f"    Time: {metar.time}\n")
+                    output.write(f"    RAW: {metar.raw}\n")
+                    output.write(
+                        f"    Wind: {metar.wind_direction} degrees at {metar.wind_speed} kt\n"
+                    )
+                    if metar.wind_gust:
+                        output.write(f"    Wind gust: {metar.wind_gust} kt\n")
+                    # TODO: Find the actual visibility
+                    if metar.visibility == "6+":
+                        output.write(f"    Visibility: 10+ km\n")
+                    else:
+                        output.write(f"    Visibility: {metar.visibility}\n")
+                    output.write(f"    Temperature: {metar.temperature}°C\n")
+                    output.write(f"    Dewpoint: {metar.dewpoint}°C\n")
+                    output.write(f"    Pressure (QNH): {metar.pressure} hPa\n")
+                    output.write(f"    Clouds:\n")
+                    for cloud in metar.clouds:
+                        output.write(f"      {cloud}\n")
 
-                output.write(f"  TAF:\n")
-                output.write(f"    RAW: {metar.raw_taf}\n")
+                    output.write(f"  TAF:\n")
+                    output.write(f"    RAW: {metar.raw_taf}\n")
 
         return output.getvalue()
 
