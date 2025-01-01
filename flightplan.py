@@ -1,4 +1,5 @@
 import math
+import datetime
 from geopy.point import Point
 from geopy.distance import geodesic
 from dataclasses import dataclass
@@ -97,16 +98,6 @@ class Waypoint:
 
     def __repr__(self):
         return f"{self.name} ({self.coordinates})"
-
-        # {
-        #     "value": "122.180",
-        #     "unit": 2,
-        #     "type": 5,
-        #     "name": "Rotterdam Delivery",
-        #     "primary": false,
-        #     "publicUse": true,
-        #     "_id": "62614e290e8346dfd924cd8f"
-        # },
 
 
 @dataclass
@@ -212,7 +203,13 @@ class FlightPlan:
 
     def __str__(self):
         output = StringIO()
-        output.write(f"Flight plan from {self.departure} to {self.arrival}\n")
+
+        current_utc_time = datetime.datetime.now(datetime.timezone.utc)
+        formatted_utc_time = current_utc_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        output.write(
+            f"Flight plan from {self.departure} to {self.arrival} generated at {formatted_utc_time}\n"
+        )
         output.write(
             f"\nNOTE: This flightplan is based on actual (calculated) data and must be used as is.\n"
         )
@@ -257,15 +254,15 @@ class FlightPlan:
                 )
 
         for i, waypoint in enumerate(self.route):
-            if i == 0:
-                output.write(f"\nDeparture:\n")
-            elif i == len(self.route) - 1:
-                output.write(f"\nArrival:\n")
-            else:
-                output.write(f"\nWaypoint {i+1}:\n")
+            # if i == 0:
+            #     output.write(f"\nDeparture:\n")
+            # elif i == len(self.route) - 1:
+            #     output.write(f"\nArrival:\n")
+            # else:
+            #     output.write(f"\nWaypoint {i+1}:\n")
 
-            output.write(f"  Name: {waypoint}\n")
             if isinstance(waypoint, Airport):
+                output.write(f"\nAerodrome: {waypoint}\n")
                 output.write(f"  ICAO: {waypoint.icao}\n")
                 output.write(f"  Type: Airport\n")
                 output.write(f"  PPR required: {'Yes' if waypoint.ppr else 'No'}\n")

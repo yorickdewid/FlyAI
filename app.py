@@ -43,7 +43,7 @@ def flight_plan(icao: str):
     if len(route) < 2:
         return Response("Need at least two waypoints", status=400)
 
-    route_aerodomes = [service.fetch_airport(icao) for icao in route]
+    route_aerodromes = [service.fetch_airport(icao) for icao in route]
 
     metar = service.fetch_metar(route)
 
@@ -61,7 +61,7 @@ def flight_plan(icao: str):
         mtow=980,
     )
 
-    plan = FlightPlan(route_aerodomes, aircraft=aircraft, metar=metar)
+    plan = FlightPlan(route_aerodromes, aircraft=aircraft, metar=metar)
     return Response(str(plan), mimetype="text/plain")
 
 
