@@ -10,7 +10,7 @@ chat_history = []
 def chat(message):
     chat_history.append(message)
 
-    print(chat_history)
+    # print(chat_history)
 
     response = client.models.generate_content(
         model="gemini-2.0-flash-exp",
