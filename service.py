@@ -104,34 +104,53 @@ def fetch_airport(icao: str) -> Airport:
         response.raise_for_status()
 
 
-# if __name__ == "__main__":
-#     import service
+if __name__ == "__main__":
+    import service
 
-#     # EGLC, EHMZ, EBSP
-#     route = ["EHRD", "EHTX", "EHGG"]
+    # EGLC, EHMZ, EBSP
+    route = ["EHRD", "EHTX", "EHGG"]
 
-#     route_aerodomes = [service.fetch_airport(icao) for icao in route]
-#     # print(route_aerodomes)
-#     # for aerodome in route_aerodomes:
-#     #     print(type(aerodome), isinstance(aerodome, Airport))
+    route_aerodromes = [service.fetch_airport(icao) for icao in route]
+    # print(route_aerodromes)
+    # for aerodrome in route_aerodromes:
+    #     print(type(aerodrome), isinstance(aerodrome, Airport))
 
-#     metar = service.fetch_metar(route)
+    metar = service.fetch_metar(route)
 
-#     aircraft = Aircraft(
-#         registration="PH-HLR",
-#         type="DR40",
-#         callsign="PH-HLR",
-#         cruise_speed=105,
-#         climb_speed=80,
-#         descent_speed=80,
-#         rate_of_climb=1000,
-#         rate_of_descent=500,
-#         fuel_capacity=100,
-#         fuel_consumption=20,
-#         mtow=980,
-#     )
+    aircraft = Aircraft(
+        registration="PH-HLR",
+        type="DR40",
+        callsign="PH-HLR",
+        cruise_speed=105,
+        climb_speed=80,
+        descent_speed=80,
+        rate_of_climb=1000,
+        rate_of_descent=500,
+        fuel_capacity=100,
+        fuel_consumption=20,
+        mtow=980,
+    )
 
-#     plan = FlightPlan(route_aerodomes, aircraft=aircraft, metar=metar)
-#     # plan.add_waypoint(ehtx)
-#     # plan.print_report()
-#     print(plan)
+    ehrd_hotel_dep = Waypoint(
+        name="EHRD HOTEL",
+        coordinates=Point(51.971667, 4.126667),
+        altitude=0,
+    )
+
+    ehtx_delta_arr = Waypoint(
+        name="EHTX DELTA",
+        coordinates=Point(53.115556, 4.899167),
+        altitude=0,
+    )
+
+    ehgg_xray_arr = Waypoint(
+        name="EHGG XRAY",
+        coordinates=Point(53.209722, 6.460000),
+        altitude=0,
+    )
+
+    plan = FlightPlan(route_aerodromes, aircraft=aircraft, metar=metar)
+    plan.add_waypoint_after(ehrd_hotel_dep, "EHRD")
+    plan.add_waypoint_after(ehtx_delta_arr, "EHRD HOTEL")
+    plan.add_waypoint_after(ehgg_xray_arr, "EHTX DELTA")
+    print(plan)
